@@ -1,0 +1,259 @@
+{
+  "_metadata": {
+    "version": "1.0",
+    "last_updated": "2025-12-01",
+    "sources": [
+      "DND Departmental Plans and Results Reports",
+      "Parliamentary Budget Officer cost estimates",
+      "PSPC Proactive Disclosure",
+      "Auditor General of Canada reports",
+      "Status Report on Major Crown Projects"
+    ],
+    "notes": "All figures in CAD millions. See data_dictionary.md for field definitions."
+  },
+  "programs": [
+    {
+      "id": 1,
+      "name": "Canadian Surface Combatant",
+      "short_code": "CSC",
+      "capability": "Naval",
+      "description": "15 combat vessels to replace Halifax-class frigates and Iroquois-class destroyers",
+      "initial_budget": 26200,
+      "current_cost": 77300,
+      "initial_delivery": "2031-01-01",
+      "current_delivery": "2035-01-01",
+      "status": "Implementation",
+      "tech_maturity": "Developmental",
+      "source_note": "PBO 2023 cost estimate; initial budget from 2008 SSE framework",
+      "suppliers": [
+        { "name": "Irving Shipbuilding", "country": "Canada", "role": "Prime", "value_pct": 0.45 },
+        { "name": "Lockheed Martin Canada", "country": "Canada", "role": "Combat Systems Integrator", "value_pct": 0.25 },
+        { "name": "BAE Systems", "country": "United Kingdom", "role": "Ship Design", "value_pct": 0.15 },
+        { "name": "CAE Inc.", "country": "Canada", "role": "Training Systems", "value_pct": 0.05 },
+        { "name": "Ultra Electronics", "country": "United Kingdom", "role": "Sonar Systems", "value_pct": 0.05 },
+        { "name": "MDA Systems", "country": "Canada", "role": "Radar Integration", "value_pct": 0.05 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Future Fighter Capability Project",
+      "short_code": "FFCP",
+      "capability": "Air",
+      "description": "88 advanced fighter aircraft to replace CF-18 fleet",
+      "initial_budget": 19000,
+      "current_cost": 19000,
+      "initial_delivery": "2027-01-01",
+      "current_delivery": "2029-01-01",
+      "status": "Implementation",
+      "tech_maturity": "Proven",
+      "source_note": "DND 2023; F-35A selected. Budget reflects acquisition cost only.",
+      "suppliers": [
+        { "name": "Lockheed Martin", "country": "United States", "role": "Prime", "value_pct": 0.65 },
+        { "name": "Pratt & Whitney Canada", "country": "Canada", "role": "Engine MRO", "value_pct": 0.10 },
+        { "name": "Northrop Grumman", "country": "United States", "role": "Sensors/EW", "value_pct": 0.10 },
+        { "name": "Magellan Aerospace", "country": "Canada", "role": "Structural Components", "value_pct": 0.08 },
+        { "name": "L3Harris Technologies", "country": "United States", "role": "Communications", "value_pct": 0.07 }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Arctic & Offshore Patrol Ships",
+      "short_code": "AOPS",
+      "capability": "Naval",
+      "description": "6 Harry DeWolf-class Arctic patrol vessels + 2 for CCG",
+      "initial_budget": 3500,
+      "current_cost": 5200,
+      "initial_delivery": "2018-01-01",
+      "current_delivery": "2025-01-01",
+      "status": "Implementation",
+      "tech_maturity": "Proven",
+      "source_note": "HMCS Harry DeWolf delivered 2021. Costs per PBO/AG reports.",
+      "suppliers": [
+        { "name": "Irving Shipbuilding", "country": "Canada", "role": "Prime", "value_pct": 0.70 },
+        { "name": "Thales Canada", "country": "Canada", "role": "Combat Management System", "value_pct": 0.12 },
+        { "name": "General Dynamics Mission Systems", "country": "Canada", "role": "Comms", "value_pct": 0.08 },
+        { "name": "Rolls-Royce", "country": "United Kingdom", "role": "Propulsion", "value_pct": 0.10 }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Joint Support Ship",
+      "short_code": "JSS",
+      "capability": "Naval",
+      "description": "2 Protecteur-class auxiliary oiler replenishment ships",
+      "initial_budget": 2600,
+      "current_cost": 4100,
+      "initial_delivery": "2020-01-01",
+      "current_delivery": "2027-01-01",
+      "status": "Delayed",
+      "tech_maturity": "Incremental",
+      "source_note": "Significant delays documented by AG 2021. Based on Cantabria-class design.",
+      "suppliers": [
+        { "name": "Seaspan", "country": "Canada", "role": "Prime", "value_pct": 0.65 },
+        { "name": "Navantia", "country": "Spain", "role": "Ship Design", "value_pct": 0.15 },
+        { "name": "L3Harris MAPPS", "country": "Canada", "role": "Integrated Platform Mgmt", "value_pct": 0.10 },
+        { "name": "Wärtsilä", "country": "Finland", "role": "Propulsion", "value_pct": 0.10 }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Fixed-Wing Search & Rescue",
+      "short_code": "FWSAR",
+      "capability": "Air",
+      "description": "16 CC-295 Kingfisher aircraft to replace CC-115 Buffalo and older CC-130H",
+      "initial_budget": 2400,
+      "current_cost": 2800,
+      "initial_delivery": "2020-01-01",
+      "current_delivery": "2025-01-01",
+      "status": "Implementation",
+      "tech_maturity": "Proven",
+      "source_note": "CC-295 deliveries began 2020; IOC achieved. ISS contract to IMP.",
+      "suppliers": [
+        { "name": "Airbus Defence & Space", "country": "Spain", "role": "Prime", "value_pct": 0.60 },
+        { "name": "IMP Aerospace", "country": "Canada", "role": "In-service Support", "value_pct": 0.20 },
+        { "name": "CAE Inc.", "country": "Canada", "role": "Training Systems", "value_pct": 0.10 },
+        { "name": "Pratt & Whitney Canada", "country": "Canada", "role": "Engine Support", "value_pct": 0.10 }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Armoured Combat Support Vehicle",
+      "short_code": "ACSV",
+      "capability": "Land",
+      "description": "360 armoured vehicles based on LAV 6.0 platform for various support roles",
+      "initial_budget": 2000,
+      "current_cost": 3200,
+      "initial_delivery": "2020-01-01",
+      "current_delivery": "2026-01-01",
+      "status": "Implementation",
+      "tech_maturity": "Incremental",
+      "source_note": "LAV 6.0 variants. London, ON production. AG 2020 noted cost growth.",
+      "suppliers": [
+        { "name": "General Dynamics Land Systems - Canada", "country": "Canada", "role": "Prime", "value_pct": 0.75 },
+        { "name": "Rheinmetall Canada", "country": "Canada", "role": "Turret Systems", "value_pct": 0.10 },
+        { "name": "DRS Technologies", "country": "United States", "role": "Electro-optical", "value_pct": 0.08 },
+        { "name": "Harris Corporation", "country": "United States", "role": "Tactical Radios", "value_pct": 0.07 }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Remotely Piloted Aircraft System",
+      "short_code": "RPAS",
+      "capability": "Air",
+      "description": "Medium-altitude long-endurance RPAS capability",
+      "initial_budget": 5000,
+      "current_cost": 5000,
+      "initial_delivery": "2028-01-01",
+      "current_delivery": "2030-01-01",
+      "status": "Definition",
+      "tech_maturity": "Developmental",
+      "source_note": "Definition phase. MQ-9B Reaper variant expected. Figures are estimates.",
+      "suppliers": [
+        { "name": "General Atomics", "country": "United States", "role": "Anticipated Prime", "value_pct": 0.55 },
+        { "name": "L3Harris WESCAM", "country": "Canada", "role": "EO/IR Sensors", "value_pct": 0.15 },
+        { "name": "MDA Systems", "country": "Canada", "role": "Ground Segment", "value_pct": 0.15 },
+        { "name": "CAE Inc.", "country": "Canada", "role": "Simulation/Training", "value_pct": 0.15 }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Logistics Vehicle Modernization",
+      "short_code": "LVM",
+      "capability": "Land",
+      "description": "Replacement of medium and heavy logistics vehicles",
+      "initial_budget": 3200,
+      "current_cost": 3800,
+      "initial_delivery": "2024-01-01",
+      "current_delivery": "2027-01-01",
+      "status": "Implementation",
+      "tech_maturity": "Proven",
+      "source_note": "Replaces MLVW/HLVW fleet. MSVS Standard Military Pattern.",
+      "suppliers": [
+        { "name": "Mack Defense", "country": "United States", "role": "Prime", "value_pct": 0.60 },
+        { "name": "DEW Engineering", "country": "Canada", "role": "Armour/Shelters", "value_pct": 0.15 },
+        { "name": "Marshall Canada", "country": "Canada", "role": "Specialized Bodies", "value_pct": 0.15 },
+        { "name": "Elbit Systems", "country": "Israel", "role": "C4ISR Integration", "value_pct": 0.10 }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Strategic Tanker Transport Capability",
+      "short_code": "STTC",
+      "capability": "Air",
+      "description": "Replacement of CC-150 Polaris strategic air-to-air refuelling capability",
+      "initial_budget": 6500,
+      "current_cost": 7800,
+      "initial_delivery": "2026-01-01",
+      "current_delivery": "2030-01-01",
+      "status": "Definition",
+      "tech_maturity": "Proven",
+      "source_note": "Definition phase. A330 MRTT leading candidate per DND.",
+      "suppliers": [
+        { "name": "Airbus Defence & Space", "country": "France", "role": "Anticipated (A330 MRTT)", "value_pct": 0.65 },
+        { "name": "CAE Inc.", "country": "Canada", "role": "Training", "value_pct": 0.10 },
+        { "name": "IMP Aerospace", "country": "Canada", "role": "MRO", "value_pct": 0.15 },
+        { "name": "L3Harris", "country": "Canada", "role": "Avionics Integration", "value_pct": 0.10 }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Digital Communications on the Move",
+      "short_code": "DCOMM",
+      "capability": "Cyber",
+      "description": "Modernization of tactical and strategic communications networks",
+      "initial_budget": 2100,
+      "current_cost": 2500,
+      "initial_delivery": "2025-01-01",
+      "current_delivery": "2028-01-01",
+      "status": "Implementation",
+      "tech_maturity": "Developmental",
+      "source_note": "Part of broader Land C4ISR modernization. Multiple sub-projects.",
+      "suppliers": [
+        { "name": "General Dynamics Mission Systems", "country": "Canada", "role": "Prime", "value_pct": 0.50 },
+        { "name": "Thales Canada", "country": "Canada", "role": "Crypto/COMSEC", "value_pct": 0.20 },
+        { "name": "Ericsson Canada", "country": "Canada", "role": "Network Infrastructure", "value_pct": 0.15 },
+        { "name": "BlackBerry QNX", "country": "Canada", "role": "Secure OS", "value_pct": 0.15 }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Patrol Ship Modernization",
+      "short_code": "PSM",
+      "capability": "Naval",
+      "description": "Mid-life refit and modernization of Kingston-class maritime coastal defence vessels",
+      "initial_budget": 1400,
+      "current_cost": 1800,
+      "initial_delivery": "2023-01-01",
+      "current_delivery": "2026-01-01",
+      "status": "Delayed",
+      "tech_maturity": "Incremental",
+      "source_note": "12 Kingston-class MCDV. Refit scope expanded driving cost growth.",
+      "suppliers": [
+        { "name": "Victoria Shipyards (Seaspan)", "country": "Canada", "role": "Prime", "value_pct": 0.55 },
+        { "name": "Thales Canada", "country": "Canada", "role": "Combat Systems", "value_pct": 0.20 },
+        { "name": "Elbit Systems", "country": "Israel", "role": "EO/IR", "value_pct": 0.10 },
+        { "name": "Lockheed Martin Canada", "country": "Canada", "role": "Systems Integration", "value_pct": 0.15 }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Ground-Based Air Defence",
+      "short_code": "GBAD",
+      "capability": "Land",
+      "description": "Modernized ground-based air defence system replacing legacy ADATS",
+      "initial_budget": 3000,
+      "current_cost": 3000,
+      "initial_delivery": "2030-01-01",
+      "current_delivery": "2032-01-01",
+      "status": "Definition",
+      "tech_maturity": "Developmental",
+      "source_note": "Options analysis phase. NASAMS likely candidate. Budget preliminary.",
+      "suppliers": [
+        { "name": "Raytheon", "country": "United States", "role": "Anticipated (NASAMS)", "value_pct": 0.45 },
+        { "name": "Kongsberg Defence", "country": "Norway", "role": "Fire Distribution Centre", "value_pct": 0.20 },
+        { "name": "Rheinmetall Canada", "country": "Canada", "role": "Integration/Vehicles", "value_pct": 0.20 },
+        { "name": "MDA Systems", "country": "Canada", "role": "Radar Subsystems", "value_pct": 0.15 }
+      ]
+    }
+  ]
+}

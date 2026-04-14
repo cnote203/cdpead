@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=/api
+    networks:
+      - cdpead
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://cdpead:${POSTGRES_PASSWORD:-cdpead}@db:5432/cdpead
+    networks:
+      - cdpead
+
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=cdpead
+      - POSTGRES_USER=cdpead
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cdpead}
+    ports:
+      - "5432:5432"
+    networks:
+      - cdpead
+
+volumes:
+  pgdata:
+
+networks:
+  cdpead:
+    driver: bridge
