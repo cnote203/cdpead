@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CDPEAD — Canadian Defence Procurement Engineering Analytics Dashboard</title>
+  <meta name="description" content="Open-source engineering analytics platform for Canadian defence procurement risk assessment. Tracks 12 major CAF programs with a custom Procurement Risk Index model." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #0a0e17;
+      color: #e2e8f0;
+      font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    #root { min-height: 100vh; }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: #0a0e17;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 9999;
+      transition: opacity 0.4s ease;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    .loading-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: #3b82f6;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .loading-bar { width: 240px; height: 2px; background: #1e2a3a; border-radius: 2px; overflow: hidden; }
+    .loading-fill {
+      height: 100%; background: #3b82f6; border-radius: 2px;
+      animation: loadfill 1.8s ease-in-out forwards;
+    }
+    @keyframes loadfill { 0% { width: 0%; } 60% { width: 70%; } 100% { width: 100%; } }
+    .loading-sub { font-size: 11px; color: #64748b; letter-spacing: 0.06em; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0e17; }
+    ::-webkit-scrollbar-thumb { background: #1e2a3a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2d3b4f; }
+    input[type=range] { cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div id="loading">
+    <div class="loading-title">CDPEAD · Initializing</div>
+    <div class="loading-bar"><div class="loading-fill"></div></div>
+    <div class="loading-sub">Canadian Defence Procurement Engineering Analytics Dashboard</div>
+  </div>
+
+  <div id="root"></div>
+
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
+
+  <script>
+    // Expose Recharts named exports so the JSX import destructure resolves at runtime
+    const _R = window.Recharts || {};
+    window.BarChart = _R.BarChart;
+    window.Bar = _R.Bar;
+    window.XAxis = _R.XAxis;
+    window.YAxis = _R.YAxis;
+    window.CartesianGrid = _R.CartesianGrid;
+    window.Tooltip = _R.Tooltip;
+    window.Legend = _R.Legend;
+    window.ResponsiveContainer = _R.ResponsiveContainer;
+    window.RadarChart = _R.RadarChart;
+    window.PolarGrid = _R.PolarGrid;
+    window.PolarAngleAxis = _R.PolarAngleAxis;
+    window.PolarRadiusAxis = _R.PolarRadiusAxis;
+    window.Radar = _R.Radar;
+    window.ScatterChart = _R.ScatterChart;
+    window.Scatter = _R.Scatter;
+    window.Cell = _R.Cell;
+    window.PieChart = _R.PieChart;
+    window.Pie = _R.Pie;
+    window.LineChart = _R.LineChart;
+    window.Line = _R.Line;
+    window.ReferenceLine = _R.ReferenceLine;
+
+    // Also expose React hooks globally for the component
+    window.useState = React.useState;
+    window.useMemo = React.useMemo;
+    window.useEffect = React.useEffect;
+  </script>
+
+  <!-- Inline the dashboard component so GitHub Pages serves it correctly as a single file -->
+  <script type="text/babel" data-presets="react" id="app-script">
+    // ═══════════════════════════════════════════════════════════════
+    // CDPEAD — Canadian Defence Procurement Engineering Analytics Dashboard
+    // All data sourced from public Canadian government documents
+    // ═══════════════════════════════════════════════════════════════
+
+    const PROGRAMS = [
+      {
+        id: 1, name: "Canadian Surface Combatant", shortCode: "CSC",
+        capability: "Naval", description: "15 combat vessels to replace Halifax-class frigates and Iroquois-class destroyers",
+        initialBudget: 26200, currentCost: 77300, initialDelivery: "2031-01-01", currentDelivery: "2035-01-01",
+        status: "Implementation", techMaturity: "Developmental",
+        primeContractor: "Irving Shipbuilding", designAgent: "Lockheed Martin Canada (BAE Type 26)",
+        suppliers: [
+          { name: "Irving Shipbuilding", country: "Canada", role: "Prime", valuePct: 0.45 },
+          { name: "Lockheed Martin Canada", country: "Canada", role: "Combat Systems Integrator", valuePct: 0.25 },
+          { name: "BAE Systems", country: "United Kingdom", role: "Ship Design", valuePct: 0.15 },
+          { name: "CAE Inc.", country: "Canada", role: "Training Systems", valuePct: 0.05 },
+          { name: "Ultra Electronics", country: "United Kingdom", role: "Sonar Systems", valuePct: 0.05 },
+          { name: "MDA Systems", country: "Canada", role: "Radar Integration", valuePct: 0.05 }
+        ],
+        sourceNote: "PBO 2023 cost estimate; initial budget from 2008 SSE framework"
+      },
+      {
+        id: 2, name: "Future Fighter Capability Project", shortCode: "FFCP",
+        capability: "Air", description: "88 advanced fighter aircraft to replace CF-18 fleet",
+        initialBudget: 19000, currentCost: 19000, initialDelivery: "2027-01-01", currentDelivery: "2029-01-01",
+        status: "Implementation", techMaturity: "Proven",
+        primeContractor: "Lockheed Martin",
+        suppliers: [
+          { name: "Lockheed Martin", country: "United States", role: "Prime", valuePct: 0.65 },
+          { name: "Pratt & Whitney Canada", country: "Canada", role: "Engine MRO", valuePct: 0.10 },
+          { name: "Northrop Grumman", country: "United States", role: "Sensors/EW", valuePct: 0.10 },
+          { name: "Magellan Aerospace", country: "Canada", role: "Structural Components", valuePct: 0.08 },
+          { name: "L3Harris Technologies", country: "United States", role: "Communications", valuePct: 0.07 }
+        ],
+        sourceNote: "DND 2023; F-35A selected. Budget reflects acquisition cost only."
+      },
+      {
+        id: 3, name: "Arctic & Offshore Patrol Ships", shortCode: "AOPS",
+        capability: "Naval", description: "6 Harry DeWolf-class Arctic patrol vessels + 2 for CCG",
+        initialBudget: 3500, currentCost: 5200, initialDelivery: "2018-01-01", currentDelivery: "2025-01-01",
+        status: "Implementation", techMaturity: "Proven",
+        primeContractor: "Irving Shipbuilding",
+        suppliers: [
+          { name: "Irving Shipbuilding", country: "Canada", role: "Prime", valuePct: 0.70 },
+          { name: "Thales Canada", country: "Canada", role: "Combat Management System", valuePct: 0.12 },
+          { name: "General Dynamics Mission Systems", country: "Canada", role: "Comms", valuePct: 0.08 },
+          { name: "Rolls-Royce", country: "United Kingdom", role: "Propulsion", valuePct: 0.10 }
+        ],
+        sourceNote: "HMCS Harry DeWolf delivered 2021. Costs per PBO/AG reports."
+      },
+      {
+        id: 4, name: "Joint Support Ship", shortCode: "JSS",
+        capability: "Naval", description: "2 Protecteur-class auxiliary oiler replenishment ships",
+        initialBudget: 2600, currentCost: 4100, initialDelivery: "2020-01-01", currentDelivery: "2027-01-01",
+        status: "Delayed", techMaturity: "Incremental",
+        primeContractor: "Seaspan",
+        suppliers: [
+          { name: "Seaspan", country: "Canada", role: "Prime", valuePct: 0.65 },
+          { name: "Navantia", country: "Spain", role: "Ship Design", valuePct: 0.15 },
+          { name: "L3Harris MAPPS", country: "Canada", role: "Integrated Platform Mgmt", valuePct: 0.10 },
+          { name: "Wärtsilä", country: "Finland", role: "Propulsion", valuePct: 0.10 }
+        ],
+        sourceNote: "Significant delays documented by AG 2021. Based on Cantabria-class design."
+      },
+      {
+        id: 5, name: "Fixed-Wing Search & Rescue", shortCode: "FWSAR",
+        capability: "Air", description: "16 CC-295 Kingfisher aircraft to replace CC-115 Buffalo and older CC-130H",
+        initialBudget: 2400, currentCost: 2800, initialDelivery: "2020-01-01", currentDelivery: "2025-01-01",
+        status: "Implementation", techMaturity: "Proven",
+        primeContractor: "Airbus Defence & Space",
+        suppliers: [
+          { name: "Airbus Defence & Space", country: "Spain", role: "Prime", valuePct: 0.60 },
+          { name: "IMP Aerospace", country: "Canada", role: "In-service Support", valuePct: 0.20 },
+          { name: "CAE Inc.", country: "Canada", role: "Training Systems", valuePct: 0.10 },
+          { name: "Pratt & Whitney Canada", country: "Canada", role: "Engine Support", valuePct: 0.10 }
+        ],
+        sourceNote: "CC-295 deliveries began 2020; IOC achieved. ISS contract to IMP."
+      },
+      {
+        id: 6, name: "Armoured Combat Support Vehicle", shortCode: "ACSV",
+        capability: "Land", description: "360 armoured vehicles based on LAV 6.0 platform for various support roles",
+        initialBudget: 2000, currentCost: 3200, initialDelivery: "2020-01-01", currentDelivery: "2026-01-01",
+        status: "Implementation", techMaturity: "Incremental",
+        primeContractor: "General Dynamics Land Systems - Canada",
+        suppliers: [
+          { name: "General Dynamics Land Systems - Canada", country: "Canada", role: "Prime", valuePct: 0.75 },
+          { name: "Rheinmetall Canada", country: "Canada", role: "Turret Systems", valuePct: 0.10 },
+          { name: "DRS Technologies", country: "United States", role: "Electro-optical", valuePct: 0.08 },
+          { name: "Harris Corporation", country: "United States", role: "Tactical Radios", valuePct: 0.07 }
+        ],
+        sourceNote: "LAV 6.0 variants. London, ON production. AG 2020 noted cost growth."
+      },
+      {
+        id: 7, name: "Remotely Piloted Aircraft System", shortCode: "RPAS",
+        capability: "Air", description: "Medium-altitude long-endurance RPAS capability",
+        initialBudget: 5000, currentCost: 5000, initialDelivery: "2028-01-01", currentDelivery: "2030-01-01",
+        status: "Definition", techMaturity: "Developmental",
+        primeContractor: "TBD",
+        suppliers: [
+          { name: "General Atomics", country: "United States", role: "Anticipated Prime", valuePct: 0.55 },
+          { name: "L3Harris WESCAM", country: "Canada", role: "EO/IR Sensors", valuePct: 0.15 },
+          { name: "MDA Systems", country: "Canada", role: "Ground Segment", valuePct: 0.15 },
+          { name: "CAE Inc.", country: "Canada", role: "Simulation/Training", valuePct: 0.15 }
+        ],
+        sourceNote: "Definition phase. MQ-9B Reaper variant expected. Figures are estimates."
+      },
+      {
+        id: 8, name: "Logistics Vehicle Modernization", shortCode: "LVM",
+        capability: "Land", description: "Replacement of medium and heavy logistics vehicles",
+        initialBudget: 3200, currentCost: 3800, initialDelivery: "2024-01-01", currentDelivery: "2027-01-01",
+        status: "Implementation", techMaturity: "Proven",
+        primeContractor: "Mack Defense",
+        suppliers: [
+          { name: "Mack Defense", country: "United States", role: "Prime", valuePct: 0.60 },
+          { name: "DEW Engineering", country: "Canada", role: "Armour/Shelters", valuePct: 0.15 },
+          { name: "Marshall Canada", country: "Canada", role: "Specialized Bodies", valuePct: 0.15 },
+          { name: "Elbit Systems", country: "Israel", role: "C4ISR Integration", valuePct: 0.10 }
+        ],
+        sourceNote: "Replaces MLVW/HLVW fleet. MSVS Standard Military Pattern."
+      },
+      {
+        id: 9, name: "Strategic Tanker Transport Capability", shortCode: "STTC",
+        capability: "Air", description: "Replacement of CC-150 Polaris strategic air-to-air refuelling capability",
+        initialBudget: 6500, currentCost: 7800, initialDelivery: "2026-01-01", currentDelivery: "2030-01-01",
+        status: "Definition", techMaturity: "Proven",
+        primeContractor: "TBD",
+        suppliers: [
+          { name: "Airbus Defence & Space", country: "France", role: "Anticipated (A330 MRTT)", valuePct: 0.65 },
+          { name: "CAE Inc.", country: "Canada", role: "Training", valuePct: 0.10 },
+          { name: "IMP Aerospace", country: "Canada", role: "MRO", valuePct: 0.15 },
+          { name: "L3Harris", country: "Canada", role: "Avionics Integration", valuePct: 0.10 }
+        ],
+        sourceNote: "Definition phase. A330 MRTT leading candidate per DND."
+      },
+      {
+        id: 10, name: "Digital Communications on the Move", shortCode: "DCOMM",
+        capability: "Cyber", description: "Modernization of tactical and strategic communications networks",
+        initialBudget: 2100, currentCost: 2500, initialDelivery: "2025-01-01", currentDelivery: "2028-01-01",
+        status: "Implementation", techMaturity: "Developmental",
+        primeContractor: "General Dynamics Mission Systems",
+        suppliers: [
+          { name: "General Dynamics Mission Systems", country: "Canada", role: "Prime", valuePct: 0.50 },
+          { name: "Thales Canada", country: "Canada", role: "Crypto/COMSEC", valuePct: 0.20 },
+          { name: "Ericsson Canada", country: "Canada", role: "Network Infrastructure", valuePct: 0.15 },
+          { name: "BlackBerry QNX", country: "Canada", role: "Secure OS", valuePct: 0.15 }
+        ],
+        sourceNote: "Part of broader Land C4ISR modernization. Multiple sub-projects."
+      },
+      {
+        id: 11, name: "Patrol Ship Modernization", shortCode: "PSM",
+        capability: "Naval", description: "Mid-life refit and modernization of Kingston-class maritime coastal defence vessels",
+        initialBudget: 1400, currentCost: 1800, initialDelivery: "2023-01-01", currentDelivery: "2026-01-01",
+        status: "Delayed", techMaturity: "Incremental",
+        primeContractor: "Victoria Shipyards",
+        suppliers: [
+          { name: "Victoria Shipyards (Seaspan)", country: "Canada", role: "Prime", valuePct: 0.55 },
+          { name: "Thales Canada", country: "Canada", role: "Combat Systems", valuePct: 0.20 },
+          { name: "Elbit Systems", country: "Israel", role: "EO/IR", valuePct: 0.10 },
+          { name: "Lockheed Martin Canada", country: "Canada", role: "Systems Integration", valuePct: 0.15 }
+        ],
+        sourceNote: "12 Kingston-class MCDV. Refit scope expanded driving cost growth."
+      },
+      {
+        id: 12, name: "Ground-Based Air Defence", shortCode: "GBAD",
+        capability: "Land", description: "Modernized ground-based air defence system replacing legacy ADATS",
+        initialBudget: 3000, currentCost: 3000, initialDelivery: "2030-01-01", currentDelivery: "2032-01-01",
+        status: "Definition", techMaturity: "Developmental",
+        primeContractor: "TBD",
+        suppliers: [
+          { name: "Raytheon", country: "United States", role: "Anticipated (NASAMS)", valuePct: 0.45 },
+          { name: "Kongsberg Defence", country: "Norway", role: "Fire Distribution Centre", valuePct: 0.20 },
+          { name: "Rheinmetall Canada", country: "Canada", role: "Integration/Vehicles", valuePct: 0.20 },
+          { name: "MDA Systems", country: "Canada", role: "Radar Subsystems", valuePct: 0.15 }
+        ],
+        sourceNote: "Options analysis phase. NASAMS likely candidate. Budget preliminary."
+      }
+    ];
+
+    // ═══ RISK ENGINE ═══
+    const DEFAULT_WEIGHTS = { costGrowth: 0.30, scheduleVar: 0.25, supplierConc: 0.20, foreignDep: 0.15, techMaturity: 0.10 };
+    const TECH_SCORES = { Proven: 0.10, Incremental: 0.35, Developmental: 0.65, Experimental: 0.90 };
+    const C_MAX = 100;
+    const S_MAX = 120;
+
+    function computeCostGrowthPct(p) {
+      return p.initialBudget > 0 ? ((p.currentCost - p.initialBudget) / p.initialBudget) * 100 : 0;
+    }
+    function computeScheduleSlipMonths(p) {
+      const d1 = new Date(p.initialDelivery);
+      const d2 = new Date(p.currentDelivery);
+      return (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+    }
+    function computeHHI(suppliers) {
+      return suppliers.reduce((sum, s) => sum + Math.pow(s.valuePct, 2), 0);
+    }
+    function computeForeignDep(suppliers) {
+      return Math.min(suppliers.filter(s => s.country !== "Canada").reduce((sum, s) => sum + s.valuePct, 0), 1.0);
+    }
+    function computePRI(program, weights = DEFAULT_WEIGHTS) {
+      const costGrowthPct = computeCostGrowthPct(program);
+      const scheduleMonths = computeScheduleSlipMonths(program);
+      const hhi = computeHHI(program.suppliers);
+      const foreignDep = computeForeignDep(program.suppliers);
+      const techScore = TECH_SCORES[program.techMaturity] || 0.5;
+      const cNorm = Math.min(costGrowthPct / C_MAX, 1.0);
+      const sNorm = Math.min(scheduleMonths / S_MAX, 1.0);
+      const scNorm = Math.min(hhi / 0.5, 1.0);
+      const fdNorm = foreignDep;
+      const tmScore = techScore;
+      const pri = weights.costGrowth * cNorm + weights.scheduleVar * sNorm + weights.supplierConc * scNorm + weights.foreignDep * fdNorm + weights.techMaturity * tmScore;
+      let riskTier = "Low";
+      if (pri > 0.75) riskTier = "Critical";
+      else if (pri > 0.50) riskTier = "High";
+      else if (pri > 0.25) riskTier = "Medium";
+      return { pri: Math.min(pri, 1.0), riskTier, components: { cNorm, sNorm, scNorm, fdNorm, tmScore }, raw: { costGrowthPct, scheduleMonths, hhi, foreignDep, techScore } };
+    }
+
+    // ═══ STYLE SYSTEM ═══
+    const COLORS = {
+      bg: "#0a0e17", bgCard: "#111827", bgCardHover: "#1a2332",
+      border: "#1e2a3a", borderLight: "#2d3b4f",
+      textPrimary: "#e2e8f0", textSecondary: "#94a3b8", textMuted: "#64748b",
+      accent: "#3b82f6", accentGreen: "#10b981", accentYellow: "#f59e0b",
+      accentRed: "#ef4444", accentPurple: "#8b5cf6", accentCyan: "#06b6d4",
+      riskLow: "#10b981", riskMedium: "#f59e0b", riskHigh: "#f97316", riskCritical: "#ef4444",
+      domain: { Land: "#22c55e", Naval: "#3b82f6", Air: "#a78bfa", Cyber: "#06b6d4", Space: "#f472b6", Joint: "#f59e0b" }
+    };
+    const RISK_COLORS = { Low: COLORS.riskLow, Medium: COLORS.riskMedium, High: COLORS.riskHigh, Critical: COLORS.riskCritical };
+
+    const styles = {
+      app: { fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif", background: COLORS.bg, color: COLORS.textPrimary, minHeight: "100vh", padding: 0, margin: 0 },
+      header: { background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)", borderBottom: `1px solid ${COLORS.border}`, padding: "24px 32px", position: "relative", overflow: "hidden" },
+      headerOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(59,130,246,0.03) 100px, rgba(59,130,246,0.03) 101px)", pointerEvents: "none" },
+      headerContent: { position: "relative", zIndex: 1, maxWidth: 1400, margin: "0 auto" },
+      headerTitle: { fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: "#f8fafc", margin: 0, lineHeight: 1.3 },
+      headerSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 6, fontWeight: 400, letterSpacing: "0.05em", textTransform: "uppercase" },
+      headerBadge: { display: "inline-block", background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 4, padding: "2px 8px", fontSize: 10, color: COLORS.accent, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 8 },
+      nav: { display: "flex", gap: 2, padding: "0 32px", background: COLORS.bgCard, borderBottom: `1px solid ${COLORS.border}`, overflowX: "auto" },
+      navItem: (active) => ({ padding: "12px 20px", fontSize: 13, fontWeight: active ? 600 : 400, color: active ? COLORS.accent : COLORS.textSecondary, background: "transparent", border: "none", borderBottom: active ? `2px solid ${COLORS.accent}` : "2px solid transparent", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s", letterSpacing: "0.01em" }),
+      main: { maxWidth: 1400, margin: "0 auto", padding: "24px 32px" },
+      card: { background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 20, marginBottom: 16 },
+      cardTitle: { fontSize: 14, fontWeight: 600, color: COLORS.textPrimary, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 },
+      grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
+      grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 },
+      grid4: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 },
+      stat: { background: "rgba(30,42,58,0.5)", borderRadius: 6, padding: "14px 16px", border: `1px solid ${COLORS.border}` },
+      statLabel: { fontSize: 11, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 500 },
+      statValue: { fontSize: 22, fontWeight: 700, marginTop: 4, lineHeight: 1.2 },
+      badge: (color) => ({ display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: `${color}20`, color, border: `1px solid ${color}40` }),
+      table: { width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 },
+      th: { textAlign: "left", padding: "10px 12px", borderBottom: `1px solid ${COLORS.border}`, color: COLORS.textMuted, fontWeight: 500, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" },
+      td: { padding: "10px 12px", borderBottom: `1px solid ${COLORS.border}15`, color: COLORS.textSecondary, verticalAlign: "middle" },
+      input: { background: "rgba(30,42,58,0.6)", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 12px", color: COLORS.textPrimary, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" },
+      select: { background: "rgba(30,42,58,0.6)", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 12px", color: COLORS.textPrimary, fontSize: 13, outline: "none", cursor: "pointer" },
+      pillGroup: { display: "flex", gap: 4, flexWrap: "wrap" },
+      pill: (active) => ({ padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: active ? 600 : 400, background: active ? "rgba(59,130,246,0.2)" : "transparent", color: active ? COLORS.accent : COLORS.textMuted, border: `1px solid ${active ? "rgba(59,130,246,0.4)" : COLORS.border}`, cursor: "pointer", transition: "all 0.2s" }),
+      tooltip: { background: "#1e293b", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 12px", fontSize: 12, color: COLORS.textPrimary, boxShadow: "0 4px 12px rgba(0,0,0,0.3)" },
+      formulaBox: { background: "rgba(15,23,42,0.8)", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "16px 20px", fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: 13, color: COLORS.accentCyan, lineHeight: 1.8, overflowX: "auto" },
+      progressBar: () => ({ width: "100%", height: 6, background: "rgba(30,42,58,0.8)", borderRadius: 3, position: "relative", overflow: "hidden" }),
+      progressFill: (pct, color) => ({ width: `${Math.min(pct, 100)}%`, height: "100%", background: color, borderRadius: 3, transition: "width 0.6s ease" }),
+    };
+
+    // ═══ UTILITY COMPONENTS ═══
+    const Metric = ({ label, value, color, unit = "" }) => (
+      <div style={styles.stat}>
+        <div style={styles.statLabel}>{label}</div>
+        <div style={{ ...styles.statValue, color: color || COLORS.textPrimary }}>
+          {value}{unit && <span style={{ fontSize: 13, fontWeight: 400, color: COLORS.textMuted, marginLeft: 2 }}>{unit}</span>}
+        </div>
+      </div>
+    );
+
+    const Badge = ({ text, color }) => <span style={styles.badge(color)}>{text}</span>;
+
+    const ProgressBar = ({ value, max = 100, color = COLORS.accent }) => (
+      <div style={styles.progressBar()}>
+        <div style={styles.progressFill(Math.min((value / max) * 100, 100), color)} />
+      </div>
+    );
+
+    const StatusBadge = ({ status }) => {
+      const colors = { Definition: COLORS.accentCyan, Implementation: COLORS.accentGreen, Delayed: COLORS.accentYellow, Delivered: COLORS.accentPurple, Cancelled: COLORS.textMuted };
+      return <Badge text={status} color={colors[status] || COLORS.textMuted} />;
+    };
+
+    const RiskBadge = ({ tier }) => <Badge text={tier} color={RISK_COLORS[tier] || COLORS.textMuted} />;
+    const DomainBadge = ({ domain }) => <Badge text={domain} color={COLORS.domain[domain] || COLORS.textMuted} />;
+
+    const SectionTitle = ({ icon, children }) => (
+      <div style={styles.cardTitle}><span style={{ fontSize: 16 }}>{icon}</span>{children}</div>
+    );
+
+    const CustomTooltip = ({ active, payload, label }) => {
+      if (!active || !payload?.length) return null;
+      return (
+        <div style={styles.tooltip}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+          {payload.map((p, i) => (
+            <div key={i} style={{ color: p.color || COLORS.textSecondary, fontSize: 12 }}>
+              {p.name}: {typeof p.value === 'number' ? p.value.toFixed(2) : p.value}
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    // ═══ MODULE A — PROGRAM TRACKER ═══
+    const ProgramTracker = () => {
+      const [search, setSearch] = useState("");
+      const [domainFilter, setDomainFilter] = useState("All");
+      const [statusFilter, setStatusFilter] = useState("All");
+      const [sortField, setSortField] = useState("costGrowth");
+      const [sortDir, setSortDir] = useState("desc");
+      const [selectedProgram, setSelectedProgram] = useState(null);
+
+      const domains = ["All", ...new Set(PROGRAMS.map(p => p.capability))];
+      const statuses = ["All", ...new Set(PROGRAMS.map(p => p.status))];
+
+      const enriched = useMemo(() => PROGRAMS.map(p => {
+        const risk = computePRI(p);
+        return { ...p, costGrowthPct: computeCostGrowthPct(p), scheduleMonths: computeScheduleSlipMonths(p), pri: risk.pri, riskTier: risk.riskTier, risk };
+      }), []);
+
+      const filtered = useMemo(() => {
+        let list = enriched;
+        if (search) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.shortCode.toLowerCase().includes(search.toLowerCase()));
+        if (domainFilter !== "All") list = list.filter(p => p.capability === domainFilter);
+        if (statusFilter !== "All") list = list.filter(p => p.status === statusFilter);
+        const sortFns = {
+          name: (a, b) => a.name.localeCompare(b.name),
+          costGrowth: (a, b) => a.costGrowthPct - b.costGrowthPct,
+          schedule: (a, b) => a.scheduleMonths - b.scheduleMonths,
+          budget: (a, b) => a.currentCost - b.currentCost,
+          risk: (a, b) => a.pri - b.pri,
+        };
+        list = [...list].sort(sortFns[sortField] || sortFns.costGrowth);
+        if (sortDir === "desc") list.reverse();
+        return list;
+      }, [enriched, search, domainFilter, statusFilter, sortField, sortDir]);
+
+      const totalBudget = enriched.reduce((s, p) => s + p.currentCost, 0);
+      const avgCostGrowth = enriched.reduce((s, p) => s + p.costGrowthPct, 0) / enriched.length;
+      const avgScheduleSlip = enriched.reduce((s, p) => s + p.scheduleMonths, 0) / enriched.length;
+      const criticalCount = enriched.filter(p => p.riskTier === "Critical" || p.riskTier === "High").length;
+
+      const handleSort = (field) => {
+        if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+        else { setSortField(field); setSortDir("desc"); }
+      };
+
+      const SortIcon = ({ field }) => {
+        if (sortField !== field) return <span style={{ color: COLORS.textMuted, fontSize: 10 }}>⇕</span>;
+        return <span style={{ color: COLORS.accent, fontSize: 10 }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
+      };
+
+      return (
+        <div>
+          <div style={styles.grid4}>
+            <Metric label="Total Portfolio Value" value={`$${(totalBudget / 1000).toFixed(1)}B`} color={COLORS.textPrimary} />
+            <Metric label="Avg Cost Growth" value={`${avgCostGrowth.toFixed(1)}%`} color={avgCostGrowth > 30 ? COLORS.accentRed : COLORS.accentYellow} />
+            <Metric label="Avg Schedule Slip" value={`${avgScheduleSlip.toFixed(0)}`} unit="months" color={COLORS.accentYellow} />
+            <Metric label="High/Critical Risk" value={criticalCount} unit={`of ${enriched.length}`} color={COLORS.accentRed} />
+          </div>
+
+          <div style={{ ...styles.card, marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+              <input style={{ ...styles.input, maxWidth: 240 }} placeholder="Search programs..." value={search} onChange={e => setSearch(e.target.value)} />
+              <div style={styles.pillGroup}>
+                {domains.map(d => <button key={d} style={styles.pill(domainFilter === d)} onClick={() => setDomainFilter(d)}>{d}</button>)}
+              </div>
+              <select style={styles.select} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={{ ...styles.th, cursor: "pointer" }} onClick={() => handleSort("name")}>Program <SortIcon field="name" /></th>
+                    <th style={styles.th}>Domain</th>
+                    <th style={{ ...styles.th, cursor: "pointer" }} onClick={() => handleSort("budget")}>Current Cost <SortIcon field="budget" /></th>
+                    <th style={{ ...styles.th, cursor: "pointer" }} onClick={() => handleSort("costGrowth")}>Cost Growth <SortIcon field="costGrowth" /></th>
+                    <th style={{ ...styles.th, cursor: "pointer" }} onClick={() => handleSort("schedule")}>Schedule Slip <SortIcon field="schedule" /></th>
+                    <th style={styles.th}>Status</th>
+                    <th style={{ ...styles.th, cursor: "pointer" }} onClick={() => handleSort("risk")}>PRI <SortIcon field="risk" /></th>
+                    <th style={styles.th}>Risk</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(p => (
+                    <tr key={p.id} onClick={() => setSelectedProgram(selectedProgram?.id === p.id ? null : p)}
+                        style={{ cursor: "pointer", background: selectedProgram?.id === p.id ? "rgba(59,130,246,0.08)" : "transparent", transition: "background 0.2s" }}>
+                      <td style={{ ...styles.td, color: COLORS.textPrimary, fontWeight: 500 }}>
+                        <div>{p.name}</div>
+                        <div style={{ fontSize: 11, color: COLORS.textMuted }}>{p.shortCode} · {p.primeContractor}</div>
+                      </td>
+                      <td style={styles.td}><DomainBadge domain={p.capability} /></td>
+                      <td style={styles.td}>${(p.currentCost / 1000).toFixed(1)}B</td>
+                      <td style={styles.td}>
+                        <span style={{ color: p.costGrowthPct > 50 ? COLORS.accentRed : p.costGrowthPct > 20 ? COLORS.accentYellow : COLORS.accentGreen, fontWeight: 600 }}>
+                          {p.costGrowthPct > 0 ? "+" : ""}{p.costGrowthPct.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td style={styles.td}>{p.scheduleMonths > 0 ? `+${p.scheduleMonths}mo` : "On track"}</td>
+                      <td style={styles.td}><StatusBadge status={p.status} /></td>
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13 }}>{p.pri.toFixed(3)}</span>
+                          <div style={{ width: 50 }}><ProgressBar value={p.pri * 100} color={RISK_COLORS[p.riskTier]} /></div>
+                        </div>
+                      </td>
+                      <td style={styles.td}><RiskBadge tier={p.riskTier} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {selectedProgram && (
+            <div style={{ ...styles.card, borderColor: COLORS.accent + "40" }}>
+              <SectionTitle icon="📋">Program Detail — {selectedProgram.name}</SectionTitle>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+                <div>
+                  <p style={{ color: COLORS.textSecondary, fontSize: 13, lineHeight: 1.6, margin: "0 0 12px" }}>{selectedProgram.description}</p>
+                  <div style={styles.grid3}>
+                    <Metric label="Initial Budget" value={`$${(selectedProgram.initialBudget / 1000).toFixed(1)}B`} />
+                    <Metric label="Current Cost" value={`$${(selectedProgram.currentCost / 1000).toFixed(1)}B`} color={selectedProgram.costGrowthPct > 30 ? COLORS.accentRed : COLORS.textPrimary} />
+                    <Metric label="Cost Delta" value={`$${((selectedProgram.currentCost - selectedProgram.initialBudget) / 1000).toFixed(1)}B`} color={COLORS.accentYellow} />
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>SUPPLIERS</div>
+                    <table style={{ ...styles.table, fontSize: 12 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ ...styles.th, fontSize: 10 }}>Supplier</th>
+                          <th style={{ ...styles.th, fontSize: 10 }}>Country</th>
+                          <th style={{ ...styles.th, fontSize: 10 }}>Role</th>
+                          <th style={{ ...styles.th, fontSize: 10 }}>Value Share</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedProgram.suppliers.map((s, i) => (
+                          <tr key={i}>
+                            <td style={{ ...styles.td, fontWeight: 500, color: COLORS.textPrimary }}>{s.name}</td>
+                            <td style={styles.td}>
+                              <span style={{ color: s.country === "Canada" ? COLORS.accentGreen : COLORS.accentYellow }}>
+                                {s.country === "Canada" ? "🍁" : "🌐"} {s.country}
+                              </span>
+                            </td>
+                            <td style={styles.td}>{s.role}</td>
+                            <td style={styles.td}>{(s.valuePct * 100).toFixed(0)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 12, fontStyle: "italic" }}>Source: {selectedProgram.sourceNote}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Risk Decomposition</div>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <RadarChart data={[
+                      { factor: "Cost", value: selectedProgram.risk.components.cNorm, fullMark: 1 },
+                      { factor: "Schedule", value: selectedProgram.risk.components.sNorm, fullMark: 1 },
+                      { factor: "Supplier", value: selectedProgram.risk.components.scNorm, fullMark: 1 },
+                      { factor: "Foreign", value: selectedProgram.risk.components.fdNorm, fullMark: 1 },
+                      { factor: "Tech", value: selectedProgram.risk.components.tmScore, fullMark: 1 }
+                    ]}>
+                      <PolarGrid stroke={COLORS.border} />
+                      <PolarAngleAxis dataKey="factor" tick={{ fill: COLORS.textMuted, fontSize: 11 }} />
+                      <PolarRadiusAxis domain={[0, 1]} tick={false} axisLine={false} />
+                      <Radar dataKey="value" stroke={RISK_COLORS[selectedProgram.riskTier]} fill={RISK_COLORS[selectedProgram.riskTier]} fillOpacity={0.25} strokeWidth={2} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <div style={{ textAlign: "center", marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: COLORS.textMuted }}>Composite PRI</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: RISK_COLORS[selectedProgram.riskTier], fontFamily: "'IBM Plex Mono', monospace" }}>
+                      {selectedProgram.pri.toFixed(3)}
+                    </div>
+                    <RiskBadge tier={selectedProgram.riskTier} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ═══ MODULE B — RISK INDEX ENGINE ═══
+    const RiskIndexModule = () => {
+      const [weights, setWeights] = useState({ ...DEFAULT_WEIGHTS });
+      const [showFormula, setShowFormula] = useState(false);
+
+      const programs = useMemo(() =>
+        PROGRAMS.map(p => ({ ...p, ...computePRI(p, weights), costGrowthPct: computeCostGrowthPct(p), scheduleMonths: computeScheduleSlipMonths(p) }))
+          .sort((a, b) => b.pri - a.pri),
+        [weights]
+      );
+
+      const riskDistribution = useMemo(() => {
+        const dist = { Low: 0, Medium: 0, High: 0, Critical: 0 };
+        programs.forEach(p => dist[p.riskTier]++);
+        return Object.entries(dist).map(([name, value]) => ({ name, value, fill: RISK_COLORS[name] }));
+      }, [programs]);
+
+      const scatterData = useMemo(() =>
+        programs.map(p => ({ name: p.shortCode, x: p.costGrowthPct, y: p.scheduleMonths, z: p.pri, tier: p.riskTier, size: Math.max(p.currentCost / 1500, 30) })),
+        [programs]
+      );
+
+      const sensitivityData = useMemo(() => {
+        const factors = ["costGrowth", "scheduleVar", "supplierConc", "foreignDep", "techMaturity"];
+        const labels = ["Cost Growth", "Schedule Var", "Supplier Conc", "Foreign Dep", "Tech Maturity"];
+        return factors.map((f, i) => {
+          const wPlus = { ...weights, [f]: Math.min(weights[f] * 1.2, 0.5) };
+          const wMinus = { ...weights, [f]: weights[f] * 0.8 };
+          const totalPlus = Object.values(wPlus).reduce((a, b) => a + b, 0);
+          const totalMinus = Object.values(wMinus).reduce((a, b) => a + b, 0);
+          Object.keys(wPlus).forEach(k => wPlus[k] /= totalPlus);
+          Object.keys(wMinus).forEach(k => wMinus[k] /= totalMinus);
+          const avgPlus = PROGRAMS.reduce((s, p) => s + computePRI(p, wPlus).pri, 0) / PROGRAMS.length;
+          const avgMinus = PROGRAMS.reduce((s, p) => s + computePRI(p, wMinus).pri, 0) / PROGRAMS.length;
+          const avgBase = PROGRAMS.reduce((s, p) => s + computePRI(p, weights).pri, 0) / PROGRAMS.length;
+          return { factor: labels[i], low: avgMinus - avgBase, high: avgPlus - avgBase };
+        });
+      }, [weights]);
+
+      const updateWeight = (key, val) => {
+        const newW = { ...weights, [key]: parseFloat(val) };
+        const sum = Object.values(newW).reduce((a, b) => a + b, 0);
+        if (sum > 0) {
+          Object.keys(newW).forEach(k => newW[k] = newW[k] / sum);
+          setWeights(newW);
+        }
+      };
+
+      return (
+        <div>
+          <div style={styles.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <SectionTitle icon="⚙️">PRI Formula & Weight Configuration</SectionTitle>
+              <button onClick={() => setShowFormula(!showFormula)} style={{ ...styles.pill(showFormula), fontSize: 12 }}>
+                {showFormula ? "Hide" : "Show"} Formula
+              </button>
+            </div>
+            {showFormula && (
+              <div style={{ ...styles.formulaBox, marginBottom: 16 }}>
+                <div>PRI = w₁·C_norm + w₂·S_norm + w₃·SC_norm + w₄·FD_norm + w₅·TM_score</div>
+                <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 8 }}>
+                  C_norm = min(cost_growth% / {C_MAX}, 1.0) · S_norm = min(slip_months / {S_MAX}, 1.0)<br/>
+                  SC_norm = min(HHI / 0.5, 1.0) · FD_norm = foreign_value / total_value<br/>
+                  TM: Proven→0.10, Incremental→0.35, Developmental→0.65, Experimental→0.90
+                </div>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+              {[
+                { key: "costGrowth", label: "Cost Growth", icon: "💰" },
+                { key: "scheduleVar", label: "Schedule", icon: "📅" },
+                { key: "supplierConc", label: "Supplier Conc.", icon: "🏭" },
+                { key: "foreignDep", label: "Foreign Dep.", icon: "🌐" },
+                { key: "techMaturity", label: "Tech Maturity", icon: "🔬" }
+              ].map(({ key, label, icon }) => (
+                <div key={key} style={{ ...styles.stat, textAlign: "center" }}>
+                  <div style={{ fontSize: 16, marginBottom: 4 }}>{icon}</div>
+                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 6 }}>{label}</div>
+                  <input type="range" min="0" max="50" step="1"
+                    value={Math.round(weights[key] * 100)}
+                    onChange={e => updateWeight(key, e.target.value / 100)}
+                    style={{ width: "100%", accentColor: COLORS.accent }} />
+                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", color: COLORS.accent, marginTop: 4 }}>
+                    {(weights[key] * 100).toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: "center", fontSize: 11, color: COLORS.textMuted, marginTop: 8 }}>
+              Weights auto-normalize to sum = 1.00 · Adjust any weight to see portfolio-wide impact
+            </div>
+          </div>
+
+          <div style={styles.grid2}>
+            <div style={styles.card}>
+              <SectionTitle icon="📊">Risk Distribution</SectionTitle>
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie data={riskDistribution} cx="50%" cy="50%" outerRadius={90} innerRadius={50} dataKey="value" paddingAngle={3} label={({ name, value }) => `${name}: ${value}`}>
+                    {riskDistribution.map((entry, i) => <Cell key={i} fill={entry.fill} stroke="none" />)}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={styles.card}>
+              <SectionTitle icon="🌡️">Sensitivity Analysis (±20% Weight Perturbation)</SectionTitle>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={sensitivityData} layout="vertical" margin={{ left: 80, right: 20, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                  <XAxis type="number" tick={{ fill: COLORS.textMuted, fontSize: 11 }} domain={[-0.03, 0.03]} />
+                  <YAxis type="category" dataKey="factor" tick={{ fill: COLORS.textSecondary, fontSize: 11 }} width={80} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="low" fill={COLORS.accentGreen} name="−20% Weight" />
+                  <Bar dataKey="high" fill={COLORS.accentRed} name="+20% Weight" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <SectionTitle icon="🎯">Cost Growth vs Schedule Slip (Bubble Size = Portfolio Share, Color = Risk Tier)</SectionTitle>
+            <ResponsiveContainer width="100%" height={340}>
+              <ScatterChart margin={{ bottom: 20, left: 10, right: 30, top: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                <XAxis type="number" dataKey="x" name="Cost Growth" unit="%" tick={{ fill: COLORS.textMuted, fontSize: 11 }} label={{ value: "Cost Growth (%)", position: "bottom", fill: COLORS.textMuted, fontSize: 11 }} />
+                <YAxis type="number" dataKey="y" name="Schedule Slip" unit="mo" tick={{ fill: COLORS.textMuted, fontSize: 11 }} label={{ value: "Schedule Slip (months)", angle: -90, position: "insideLeft", fill: COLORS.textMuted, fontSize: 11 }} />
+                <Tooltip content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const d = payload[0].payload;
+                  return (
+                    <div style={styles.tooltip}>
+                      <div style={{ fontWeight: 600 }}>{d.name}</div>
+                      <div>Cost Growth: {d.x.toFixed(1)}%</div>
+                      <div>Schedule Slip: {d.y} months</div>
+                      <div>PRI: {d.z.toFixed(3)} ({d.tier})</div>
+                    </div>
+                  );
+                }} />
+                <ReferenceLine x={30} stroke={COLORS.accentYellow} strokeDasharray="5 5" label={{ value: "30% threshold", fill: COLORS.accentYellow, fontSize: 10 }} />
+                <ReferenceLine y={48} stroke={COLORS.accentYellow} strokeDasharray="5 5" label={{ value: "4yr threshold", fill: COLORS.accentYellow, fontSize: 10 }} />
+                <Scatter data={scatterData}>
+                  {scatterData.map((entry, i) => (
+                    <Cell key={i} fill={RISK_COLORS[entry.tier]} fillOpacity={0.7} r={Math.sqrt(entry.size) * 1.5} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={styles.card}>
+            <SectionTitle icon="📋">Program Risk Ranking</SectionTitle>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Rank</th><th style={styles.th}>Program</th><th style={styles.th}>PRI</th>
+                  <th style={styles.th}>C_norm</th><th style={styles.th}>S_norm</th><th style={styles.th}>SC_norm</th>
+                  <th style={styles.th}>FD_norm</th><th style={styles.th}>TM</th><th style={styles.th}>Risk Tier</th>
+                </tr>
+              </thead>
+              <tbody>
+                {programs.map((p, i) => (
+                  <tr key={p.id}>
+                    <td style={{ ...styles.td, fontWeight: 600, color: COLORS.textMuted }}>{i + 1}</td>
+                    <td style={{ ...styles.td, fontWeight: 500, color: COLORS.textPrimary }}>{p.shortCode}</td>
+                    <td style={{ ...styles.td, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", color: RISK_COLORS[p.riskTier] }}>{p.pri.toFixed(3)}</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{p.components.cNorm.toFixed(3)}</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{p.components.sNorm.toFixed(3)}</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{p.components.scNorm.toFixed(3)}</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{p.components.fdNorm.toFixed(3)}</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{p.components.tmScore.toFixed(3)}</td>
+                    <td style={styles.td}><RiskBadge tier={p.riskTier} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    };
+
+    // ═══ MODULE C — SUPPLIER ANALYSIS ═══
+    const SupplierAnalysis = () => {
+      const supplierMap = useMemo(() => {
+        const map = {};
+        PROGRAMS.forEach(p => {
+          p.suppliers.forEach(s => {
+            if (!map[s.name]) map[s.name] = { name: s.name, country: s.country, isCanadian: s.country === "Canada", programs: [], totalValue: 0, roles: new Set() };
+            map[s.name].programs.push({ program: p.shortCode, role: s.role, valuePct: s.valuePct, programBudget: p.currentCost });
+            map[s.name].totalValue += s.valuePct * p.currentCost;
+            map[s.name].roles.add(s.role);
+          });
+        });
+        return Object.values(map).sort((a, b) => b.totalValue - a.totalValue);
+      }, []);
+
+      const totalPortfolioValue = PROGRAMS.reduce((s, p) => s + p.currentCost, 0);
+      const canadianValue = supplierMap.filter(s => s.isCanadian).reduce((sum, s) => sum + s.totalValue, 0);
+      const canadianPct = (canadianValue / totalPortfolioValue) * 100;
+      const primeShares = {};
+      PROGRAMS.forEach(p => {
+        const prime = p.suppliers.find(s => s.role === "Prime" || s.role.includes("Prime"));
+        if (prime) primeShares[prime.name] = (primeShares[prime.name] || 0) + p.currentCost;
+      });
+      const portfolioHHI = Object.values(primeShares).reduce((sum, val) => {
+        const share = val / totalPortfolioValue;
+        return sum + share * share;
+      }, 0);
+      const top5Data = supplierMap.slice(0, 5).map(s => ({
+        name: s.name.length > 20 ? s.name.substring(0, 18) + "…" : s.name,
+        value: s.totalValue / 1000,
+        fill: s.isCanadian ? COLORS.accentGreen : COLORS.accentYellow
+      }));
+      const countryBreakdown = useMemo(() => {
+        const countries = {};
+        supplierMap.forEach(s => { countries[s.country] = (countries[s.country] || 0) + s.totalValue; });
+        return Object.entries(countries).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({
+          name, value: value / 1000,
+          fill: name === "Canada" ? COLORS.accentGreen : name === "United States" ? COLORS.accent : COLORS.accentPurple
+        }));
+      }, [supplierMap]);
+      const programHHIs = PROGRAMS.map(p => ({
+        name: p.shortCode, hhi: computeHHI(p.suppliers), foreignDep: computeForeignDep(p.suppliers), domain: p.capability
+      })).sort((a, b) => b.hhi - a.hhi);
+
+      return (
+        <div>
+          <div style={styles.grid4}>
+            <Metric label="Canadian Content" value={`${canadianPct.toFixed(1)}%`} color={COLORS.accentGreen} />
+            <Metric label="Canadian $ Value" value={`$${(canadianValue / 1000).toFixed(1)}B`} color={COLORS.accentGreen} />
+            <Metric label="Foreign Dependency" value={`${(100 - canadianPct).toFixed(1)}%`} color={COLORS.accentYellow} />
+            <Metric label="Portfolio HHI" value={portfolioHHI.toFixed(4)} color={portfolioHHI > 0.25 ? COLORS.accentRed : COLORS.accentGreen} />
+          </div>
+          <div style={styles.grid2}>
+            <div style={styles.card}>
+              <SectionTitle icon="🏭">Top Suppliers by Contract Value ($B CAD)</SectionTitle>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={top5Data} layout="vertical" margin={{ left: 120, right: 20, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                  <XAxis type="number" tick={{ fill: COLORS.textMuted, fontSize: 11 }} unit="B" />
+                  <YAxis type="category" dataKey="name" tick={{ fill: COLORS.textSecondary, fontSize: 11 }} width={120} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="value" name="Value ($B)">{top5Data.map((e, i) => <Cell key={i} fill={e.fill} />)}</Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={styles.card}>
+              <SectionTitle icon="🌍">Spending by Country ($B CAD)</SectionTitle>
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={countryBreakdown} cx="50%" cy="50%" outerRadius={95} innerRadius={45} dataKey="value" paddingAngle={2}
+                    label={({ name, value }) => `${name}: $${value.toFixed(1)}B`}>
+                    {countryBreakdown.map((e, i) => <Cell key={i} fill={e.fill} stroke="none" />)}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div style={styles.card}>
+            <SectionTitle icon="📊">Program-Level HHI & Foreign Dependency</SectionTitle>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={programHHIs} margin={{ bottom: 30, left: 10, right: 10, top: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                <XAxis dataKey="name" tick={{ fill: COLORS.textMuted, fontSize: 11 }} angle={-30} textAnchor="end" />
+                <YAxis tick={{ fill: COLORS.textMuted, fontSize: 11 }} domain={[0, 1]} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 11, color: COLORS.textSecondary }} />
+                <ReferenceLine y={0.25} stroke={COLORS.accentRed} strokeDasharray="5 5" label={{ value: "High Concentration", fill: COLORS.accentRed, fontSize: 10, position: "right" }} />
+                <Bar dataKey="hhi" fill={COLORS.accent} name="HHI (Supplier Concentration)" />
+                <Bar dataKey="foreignDep" fill={COLORS.accentYellow} name="Foreign Dependency Ratio" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={styles.card}>
+            <SectionTitle icon="🔗">Complete Supplier Registry</SectionTitle>
+            <div style={{ overflowX: "auto" }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Supplier</th><th style={styles.th}>Country</th><th style={styles.th}>Programs</th>
+                    <th style={styles.th}>Roles</th><th style={styles.th}>Est. Value ($B)</th><th style={styles.th}>Portfolio Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supplierMap.map((s, i) => (
+                    <tr key={i}>
+                      <td style={{ ...styles.td, fontWeight: 500, color: COLORS.textPrimary }}>{s.name}</td>
+                      <td style={styles.td}><span style={{ color: s.isCanadian ? COLORS.accentGreen : COLORS.accentYellow }}>{s.isCanadian ? "🍁" : "🌐"} {s.country}</span></td>
+                      <td style={styles.td}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{s.programs.map((prog, j) => <span key={j} style={{ ...styles.badge(COLORS.accent), fontSize: 10 }}>{prog.program}</span>)}</div></td>
+                      <td style={{ ...styles.td, fontSize: 12 }}>{[...s.roles].join(", ")}</td>
+                      <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace" }}>${(s.totalValue / 1000).toFixed(2)}B</td>
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{((s.totalValue / totalPortfolioValue) * 100).toFixed(1)}%</span>
+                          <div style={{ width: 60 }}><ProgressBar value={(s.totalValue / totalPortfolioValue) * 100} color={s.isCanadian ? COLORS.accentGreen : COLORS.accentYellow} /></div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ═══ MODULE D — BUDGET ANALYTICS ═══
+    const BudgetAnalytics = () => {
+      const domainData = useMemo(() => {
+        const domains = {};
+        PROGRAMS.forEach(p => {
+          if (!domains[p.capability]) domains[p.capability] = { initial: 0, current: 0, programs: 0 };
+          domains[p.capability].initial += p.initialBudget;
+          domains[p.capability].current += p.currentCost;
+          domains[p.capability].programs++;
+        });
+        return Object.entries(domains).map(([name, d]) => ({
+          name, initial: d.initial / 1000, current: d.current / 1000,
+          growth: ((d.current - d.initial) / d.initial) * 100, programs: d.programs, fill: COLORS.domain[name]
+        })).sort((a, b) => b.current - a.current);
+      }, []);
+
+      const contractorSpend = useMemo(() => {
+        const contractors = {};
+        PROGRAMS.forEach(p => {
+          const prime = p.suppliers.find(s => s.role === "Prime" || s.role.includes("Prime"));
+          if (prime) contractors[prime.name] = (contractors[prime.name] || 0) + p.currentCost;
+        });
+        return Object.entries(contractors).map(([name, value]) => ({
+          name: name.length > 25 ? name.substring(0, 23) + "…" : name, value: value / 1000
+        })).sort((a, b) => b.value - a.value);
+      }, []);
+
+      const totalInitial = PROGRAMS.reduce((s, p) => s + p.initialBudget, 0);
+      const totalCurrent = PROGRAMS.reduce((s, p) => s + p.currentCost, 0);
+      const totalGrowth = ((totalCurrent - totalInitial) / totalInitial) * 100;
+      const programBudgets = PROGRAMS.map(p => ({
+        name: p.shortCode, initial: p.initialBudget / 1000, current: p.currentCost / 1000,
+        growth: computeCostGrowthPct(p)
+      })).sort((a, b) => b.current - a.current);
+
+      return (
+        <div>
+          <div style={styles.grid4}>
+            <Metric label="Total Initial Budget" value={`$${(totalInitial / 1000).toFixed(1)}B`} />
+            <Metric label="Total Current Cost" value={`$${(totalCurrent / 1000).toFixed(1)}B`} color={COLORS.accentYellow} />
+            <Metric label="Total Cost Growth" value={`+${totalGrowth.toFixed(1)}%`} color={COLORS.accentRed} />
+            <Metric label="Absolute Growth" value={`$${((totalCurrent - totalInitial) / 1000).toFixed(1)}B`} color={COLORS.accentRed} />
+          </div>
+          <div style={styles.grid2}>
+            <div style={styles.card}>
+              <SectionTitle icon="🎖️">Budget by Capability Domain ($B CAD)</SectionTitle>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={domainData} margin={{ bottom: 10, left: 10, right: 10, top: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                  <XAxis dataKey="name" tick={{ fill: COLORS.textMuted, fontSize: 11 }} />
+                  <YAxis tick={{ fill: COLORS.textMuted, fontSize: 11 }} unit="B" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="initial" fill={COLORS.textMuted} name="Initial Budget ($B)" />
+                  <Bar dataKey="current" name="Current Cost ($B)">{domainData.map((e, i) => <Cell key={i} fill={e.fill} />)}</Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={styles.card}>
+              <SectionTitle icon="🏗️">Spending by Prime Contractor ($B CAD)</SectionTitle>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={contractorSpend} layout="vertical" margin={{ left: 140, right: 20, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                  <XAxis type="number" tick={{ fill: COLORS.textMuted, fontSize: 11 }} unit="B" />
+                  <YAxis type="category" dataKey="name" tick={{ fill: COLORS.textSecondary, fontSize: 11 }} width={140} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="value" fill={COLORS.accent} name="Contract Value ($B)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div style={styles.card}>
+            <SectionTitle icon="📈">Cost Growth by Program (Initial vs Current)</SectionTitle>
+            <ResponsiveContainer width="100%" height={340}>
+              <BarChart data={programBudgets} margin={{ bottom: 40, left: 10, right: 10, top: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                <XAxis dataKey="name" tick={{ fill: COLORS.textMuted, fontSize: 11 }} angle={-30} textAnchor="end" />
+                <YAxis tick={{ fill: COLORS.textMuted, fontSize: 11 }} unit="B" label={{ value: "CAD Billions", angle: -90, position: "insideLeft", fill: COLORS.textMuted, fontSize: 11 }} />
+                <Tooltip content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const d = payload[0]?.payload;
+                  return (
+                    <div style={styles.tooltip}>
+                      <div style={{ fontWeight: 600 }}>{label}</div>
+                      <div>Initial: ${d?.initial?.toFixed(1)}B</div>
+                      <div>Current: ${d?.current?.toFixed(1)}B</div>
+                      <div style={{ color: d?.growth > 0 ? COLORS.accentRed : COLORS.accentGreen }}>Growth: {d?.growth > 0 ? "+" : ""}{d?.growth?.toFixed(1)}%</div>
+                    </div>
+                  );
+                }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="initial" fill={COLORS.textMuted} name="Initial Budget ($B)" opacity={0.6} />
+                <Bar dataKey="current" fill={COLORS.accent} name="Current Cost ($B)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={styles.card}>
+            <SectionTitle icon="📊">Domain-Level Summary</SectionTitle>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Domain</th><th style={styles.th}>Programs</th><th style={styles.th}>Initial Budget</th>
+                  <th style={styles.th}>Current Cost</th><th style={styles.th}>Absolute Growth</th><th style={styles.th}>% Growth</th><th style={styles.th}>Portfolio Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {domainData.map((d, i) => (
+                  <tr key={i}>
+                    <td style={styles.td}><DomainBadge domain={d.name} /></td>
+                    <td style={{ ...styles.td, textAlign: "center" }}>{d.programs}</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace" }}>${d.initial.toFixed(1)}B</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, color: COLORS.textPrimary }}>${d.current.toFixed(1)}B</td>
+                    <td style={{ ...styles.td, fontFamily: "'IBM Plex Mono', monospace", color: COLORS.accentRed }}>${(d.current - d.initial).toFixed(1)}B</td>
+                    <td style={styles.td}>
+                      <span style={{ color: d.growth > 40 ? COLORS.accentRed : d.growth > 20 ? COLORS.accentYellow : COLORS.accentGreen, fontWeight: 600 }}>+{d.growth.toFixed(1)}%</span>
+                    </td>
+                    <td style={styles.td}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>{((d.current / (totalCurrent / 1000)) * 100).toFixed(1)}%</span>
+                        <div style={{ width: 60 }}><ProgressBar value={(d.current / (totalCurrent / 1000)) * 100} color={d.fill} /></div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    };
+
+    // ═══ MODULE E — METHODOLOGY ═══
+    const Methodology = () => (
+      <div>
+        <div style={styles.card}>
+          <SectionTitle icon="📐">Procurement Risk Index — Mathematical Foundation</SectionTitle>
+          <div style={styles.formulaBox}>
+            <div style={{ fontSize: 15, marginBottom: 12, color: COLORS.textPrimary }}>Composite PRI Formula</div>
+            <div>PRI = w₁·C_norm + w₂·S_norm + w₃·SC_norm + w₄·FD_norm + w₅·TM_score</div>
+            <br/>
+            <div style={{ color: COLORS.textMuted }}>Where:</div>
+            <div>C_norm  = min( (Current_Cost − Initial_Budget) / Initial_Budget × 100 / C_MAX , 1.0 )</div>
+            <div>S_norm  = min( Schedule_Slip_Months / S_MAX , 1.0 )</div>
+            <div>SC_norm = min( HHI / 0.5 , 1.0 )  where HHI = Σ(sᵢ²)</div>
+            <div>FD_norm = Foreign_Contract_Value / Total_Contract_Value</div>
+            <div>TM_score= Categorical: Proven→0.10, Incremental→0.35, Developmental→0.65, Experimental→0.90</div>
+            <br/>
+            <div style={{ color: COLORS.textMuted }}>Constants: C_MAX = 100% · S_MAX = 120 months · HHI divisor = 0.5</div>
+          </div>
+        </div>
+        <div style={styles.grid2}>
+          <div style={styles.card}>
+            <SectionTitle icon="⚖️">Weight Justification</SectionTitle>
+            <table style={styles.table}>
+              <thead><tr><th style={styles.th}>Factor</th><th style={styles.th}>Weight</th><th style={styles.th}>Rationale</th></tr></thead>
+              <tbody>
+                {[
+                  ["Cost Growth", "0.30", "Primary indicator per PBO/AG findings. Most visible metric for parliamentary accountability."],
+                  ["Schedule Variance", "0.25", "Strong correlation with cost overruns. Capability gap implications for CAF readiness."],
+                  ["Supplier Concentration", "0.20", "Structural risk. HHI is Competition Bureau standard. Limits competitive alternatives."],
+                  ["Foreign Dependency", "0.15", "Sovereignty risk via ITAR/EAR exposure. ITB policy alignment measure."],
+                  ["Technology Maturity", "0.10", "Root cause driver but effects propagate into cost/schedule. Lower weight avoids double-counting."],
+                ].map(([f, w, r]) => (
+                  <tr key={f}>
+                    <td style={{ ...styles.td, fontWeight: 500 }}>{f}</td>
+                    <td style={{ ...styles.td, fontFamily: "monospace" }}>{w}</td>
+                    <td style={styles.td}>{r}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={styles.card}>
+            <SectionTitle icon="⚠️">Explicit Assumptions</SectionTitle>
+            <table style={styles.table}>
+              <thead><tr><th style={styles.th}>ID</th><th style={styles.th}>Assumption</th><th style={styles.th}>Impact</th></tr></thead>
+              <tbody>
+                {[
+                  ["A-01", "Budget figures in nominal CAD", "Medium"],
+                  ["A-02", "Schedule dates from DND public forecasts", "Low"],
+                  ["A-03", "Supplier values may be incomplete (redactions)", "High"],
+                  ["A-04", "Tech maturity is qualitative assessment", "Medium"],
+                  ["A-05", "Weights are fixed defaults (user-adjustable)", "Medium"],
+                  ["A-06", "Foreign dep. uses contract value, not production location", "Low"],
+                  ["A-07", "HHI calculated at prime contractor level only", "Medium"],
+                ].map(([id, text, impact]) => (
+                  <tr key={id}>
+                    <td style={{ ...styles.td, fontFamily: "monospace", fontWeight: 600, color: COLORS.accent }}>{id}</td>
+                    <td style={styles.td}>{text}</td>
+                    <td style={styles.td}><Badge text={impact} color={impact === "High" ? COLORS.accentRed : impact === "Medium" ? COLORS.accentYellow : COLORS.accentGreen} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style={styles.card}>
+          <SectionTitle icon="🏗️">System Architecture</SectionTitle>
+          <div style={styles.formulaBox}>
+            <div style={{ color: COLORS.textPrimary, marginBottom: 8 }}>Production Architecture (local deployment)</div>
+            <div style={{ color: COLORS.textMuted }}>
+{`Frontend:  React 18 + Recharts + custom PRI risk engine
+Backend:   FastAPI (Python 3.11+) + SQLAlchemy 2.0
+Database:  PostgreSQL 15
+Pipeline:  Pandas ETL + vendor normalization modules
+Deploy:    Docker Compose (local) | Static build (GitHub Pages)
+Data:      All sources public/unclassified Canadian government`}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // ═══ MAIN APP ═══
+    const TABS = [
+      { id: "programs", label: "Program Tracker", icon: "📋" },
+      { id: "risk", label: "Risk Index Engine", icon: "⚙️" },
+      { id: "suppliers", label: "Supplier Analysis", icon: "🏭" },
+      { id: "budget", label: "Budget Analytics", icon: "💰" },
+      { id: "methodology", label: "Methodology", icon: "📐" }
+    ];
+
+    function App() {
+      const [activeTab, setActiveTab] = useState("programs");
+      return (
+        <div style={styles.app}>
+          <header style={styles.header}>
+            <div style={styles.headerOverlay} />
+            <div style={styles.headerContent}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <div>
+                  <h1 style={styles.headerTitle}>Canadian Defence Procurement</h1>
+                  <h1 style={{ ...styles.headerTitle, color: COLORS.accent }}>Engineering Analytics Dashboard</h1>
+                  <div style={styles.headerSub}>Decision Support System · DND / DGLEPM / Systems Engineering</div>
+                  <div style={styles.headerBadge}>Unclassified · Open Source Data Only</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: COLORS.textMuted }}>DATA REFRESH</div>
+                  <div style={{ fontSize: 13, color: COLORS.textSecondary, fontFamily: "'IBM Plex Mono', monospace" }}>2025-Q4</div>
+                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4 }}>{PROGRAMS.length} PROGRAMS TRACKED</div>
+                </div>
+              </div>
+            </div>
+          </header>
+          <nav style={styles.nav}>
+            {TABS.map(tab => (
+              <button key={tab.id} style={styles.navItem(activeTab === tab.id)} onClick={() => setActiveTab(tab.id)}>
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </nav>
+          <main style={styles.main}>
+            {activeTab === "programs" && <ProgramTracker />}
+            {activeTab === "risk" && <RiskIndexModule />}
+            {activeTab === "suppliers" && <SupplierAnalysis />}
+            {activeTab === "budget" && <BudgetAnalytics />}
+            {activeTab === "methodology" && <Methodology />}
+          </main>
+          <footer style={{ maxWidth: 1400, margin: "0 auto", padding: "16px 32px 32px", borderTop: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 11, color: COLORS.textMuted }}>CDPEAD v1.0 · Engineering Analytics Platform · All data from public/open Canadian sources</div>
+            <div style={{ fontSize: 11, color: COLORS.textMuted }}>PRI Model v1.0 · Weights configurable · See Methodology tab for full documentation</div>
+          </footer>
+        </div>
+      );
+    }
+
+    // Mount
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+    setTimeout(() => {
+      const loader = document.getElementById('loading');
+      if (loader) { loader.classList.add('hidden'); setTimeout(() => loader.remove(), 500); }
+    }, 600);
+  </script>
+
+</body>
+</html>
